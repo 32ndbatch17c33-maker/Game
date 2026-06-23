@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>Planetary Matrix</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body {
+            background-color: #0b0f19;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            color: #f1f5f9;
+        }
+        #gameContainer {
+            position: relative;
+            width: 1020px;
+            height: 640px;
+            background: #090d16;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 243, 255, 0.05);
+            overflow: hidden;
+            cursor: pointer;
+        }
+        canvas {
+            display: block;
+        }
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .hud-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .screen {
+            background: rgba(11, 15, 25, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: auto;
+            width: 580px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+        }
+        h1 {
+            font-size: 40px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            margin-bottom: 6px;
+            color: #ffffff;
+        }
+        .subtitle {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 30px;
+        }
+        .btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 12px 30px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            background: #ffffff;
+            color: #0b0f19;
+            border-color: #ffffff;
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15);
+        }
+        .btn-primary {
+            background: #00f3ff;
+            color: #0b0f19;
+            border-color: #00f3ff;
+        }
+        .btn-primary:hover {
+            background: #00d2dd;
+            border-color: #00d2dd;
+            color: #0b0f19;
+            box-shadow: 0 4px 15px rgba(0, 243, 255, 0.3);
+        }
+        .btn-danger { border-color: rgba(239, 68, 68, 0.4); color: #ef4444; }
+        .btn-danger:hover { background: #ef4444; color: #ffffff; border-color: #ef4444; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); }
+        .btn-shop { padding: 6px 14px; font-size: 12px; border-color: rgba(234, 179, 8, 0.4); color: #eab308; }
+        .btn-shop:hover { background: #eab308; color: #0b0f19; border-color: #eab308; box-shadow: 0 4px 12px rgba(234, 179, 8, 0.25); }
+        
+        #centerAlert {
+            position: absolute;
+            bottom: 65px;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 1px;
+            display: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+        }
+        .vault-container { display: flex; justify-content: center; gap: 12px; margin: 20px 0; min-height: 55px; }
+        .vault-box {
+            width: 45px; height: 45px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 16px;
+        }
+        #exitScreen { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1020" height="640"></canvas>
+        
+        <div id="hud">
+            <div>
+                <span class="hud-panel" id="scoreDisplay">SCORE: 0</span>
+                <span class="hud-panel" id="multiplierDisplay" style="color: #10b981; margin-left:6px;">MULTIPLIER: x1</span>
+                <span class="hud-panel" id="missionDisplay" style="color: #94a3b8; margin-left:6px;">MISSION: STARTING</span>
+            </div>
+            <div>
+                <span class="hud-panel" id="powerupDisplay" style="color: #eab308; display: none;">POWERUP</span>
+                <span class="hud-panel" id="inventoryDisplay" style="color: #a855f7; margin-left:6px;">BOXES: 0</span>
+                <span class="hud-panel" id="heartCounter" style="color: #ef4444; margin-left:6px;">HEARTS: 0</span>
+                <span class="hud-panel" id="bankDisplay" style="color: #eab308; margin-left:6px;">MONEY: 0</span>
+            </div>
+        </div>
+
+        <div class="ui-layer">
+            <div id="centerAlert">SYSTEM UPDATED</div>
+
+            <!-- Main Menu / Market Hub -->
+            <div id="startScreen" class="screen">
+                <h1>Planetary Matrix</h1>
+                <div class="subtitle">Main Menu</div>
+                
+                <div style="background: rgba(255,255,255,0.02); padding: 18px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 25px; text-align: left; font-size: 13px; line-height: 1.5;">
+                    <div style="color: #eab308; font-weight: 600; margin-bottom: 6px; text-align: center;">MARKET</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <b>Buy Life Heart</b><br>
+                            <span style="color: #64748b;">Gives you a second chance if you hit a wall.</span>
+                        </div>
+                        <button id="buyHeartBtn" class="btn btn-shop" onclick="purchaseHeart()">Buy Heart [40 Money]</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button class="btn btn-primary" style="flex: 2;" onclick="startGame()">Start Game</button>
+                    <button class="btn btn-danger" style="flex: 1;" onclick="terminateApplication()">Close Game</button>
+                </div>
+            </div>
+
+            <!-- Exit Screen -->
+            <div id="exitScreen" class="screen">
+                <h1>Game Closed</h1>
+                <div class="subtitle">The application is now idle.</div>
+                <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 30px;">
+                    Your progress and statistics have been safely stored. Click below to return to the mainboard.
+                </p>
+                <button class="btn btn-primary" onclick="reconnectTerminal()">Open Main Menu</button>
+            </div>
+
+            <!-- Game Over Screen -->
+            <div id="gameOverScreen" class="screen">
+                <h1 id="screenTitle">Game Over</h1>
+                <div id="screenSubtitle" class="subtitle">Review your run results below.</div>
+                
+                <div id="vaultArea" style="display:none;">
+                    <p style="font-size:12px; color:#34d399; margin-bottom: 10px;">Unlocking Collected Cargo Boxes:</p>
+                    <div class="vault-container" id="vaultGrid"></div>
+                </div>
+
+                <p style="margin: 20px 0; font-size: 15px; color: #94a3b8;">
+                    Final Score: <span id="finalScore" style="color:#00f3ff; font-size:24px; font-weight:700;">0</span>
+                </p>
+
+                <div id="reviveSection" style="margin-bottom: 20px; padding: 15px; background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.15); border-radius: 8px; display:none;">
+                    <p style="font-size: 13px; margin-bottom: 10px;" id="reviveCostText">Use 1 Heart to keep playing.</p>
+                    <button class="btn" id="reviveBtn" style="border-color:#ef4444; color:#ef4444;" onclick="triggerHeartRevive()">Use Heart Voucher</button>
+                </div>
+
+                <button class="btn" id="hangarReturnBtn" onclick="showHub()">Return to Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const exitScreen = document.getElementById('exitScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const multiplierDisplay = document.getElementById('multiplierDisplay');
+        const missionDisplay = document.getElementById('missionDisplay');
+        const bankDisplay = document.getElementById('bankDisplay');
+        const inventoryDisplay = document.getElementById('inventoryDisplay');
+        const heartCounter = document.getElementById('heartCounter');
+        const powerupDisplay = document.getElementById('powerupDisplay');
+        const finalScoreText = document.getElementById('finalScore');
+        const gameContainer = document.getElementById('gameContainer');
+        const centerAlert = document.getElementById('centerAlert');
+        const buyHeartBtn = document.getElementById('buyHeartBtn');
+        const screenTitle = document.getElementById('screenTitle');
+        const screenSubtitle = document.getElementById('screenSubtitle');
+        const vaultArea = document.getElementById('vaultArea');
+        const vaultGrid = document.getElementById('vaultGrid');
+        const reviveSection = document.getElementById('reviveSection');
+        const reviveCostText = document.getElementById('reviveCostText');
+        const reviveBtn = document.getElementById('reviveBtn');
+        const hangarReturnBtn = document.getElementById('hangarReturnBtn');
+
+        const COLORS = { cyan: '#00f3ff', magenta: '#ff0055', gold: '#eab308', green: '#10b981', purple: '#a855f7', white: '#ffffff', hullWhite: '#f8fafc' };
+
+        // Banking & Statistics Data
+        let accountCredits = parseInt(localStorage.getItem('p_ultra_credits')) || 0;
+        let accountHearts = parseInt(localStorage.getItem('p_ultra_hearts')) || 0;
+
+        // Core App States
+        let gameState = 'start';
+        let score = 0; let runMultiplier = 1; let gameSpeed = 5.5; let playerState = 'cyan';
+        let playerY = 320; let playerTargetY = 320; let playerSize = 11;
+        
+        let barriers = []; let collectibles = []; let particles = []; let jetTrails = []; let spatialGridMesh = [];
+        let phantoms = []; let lastSpawnTime = 0;
+
+        // Environmental Background Layer Objects
+        let backgroundClouds = [];
+        let groundTrees = [];
+        let cityscapeBuildings = [];
+        let seaWaveAnims = 0;
+        let livingOrganismPulse = 0; // Tracks cycle for organic column shifting
+
+        // Powerups & Active Modifiers
+        let activePowerup = null; let powerupTimer = 0;
+        let gatheredBoxesThisRun = 0; let sequentialRevivesThisRun = 0;
+        let currentMission = { type: 'pass_walls', target: 5, progress: 0, desc: "Clear 5 Walls" };
+
+        let audioCtx = null;
+
+        document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+        document.addEventListener('gesturechange', function(e) { e.preventDefault(); });
+        document.addEventListener('gestureend', function(e) { e.preventDefault(); });
+
+        function initAudioEngine() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                startBackgroundHymnLoop();
+            }
+        }
+
+        function playSynthTone(freq, type, duration, vol=0.12) {
+            if (!audioCtx) return;
+            try {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
+            } catch(e){}
+        }
+
+        function startBackgroundHymnLoop() {
+            setInterval(() => {
+                if (gameState === 'playing') playSynthTone(65.41, 'triangle', 1.5, 0.03);
+            }, 2200);
+        }
+
+        function initializeMission() {
+            const pools = [
+                { type: 'pass_walls', target: 5, desc: "Clear 5 Walls" },
+                { type: 'get_credits', target: 20, desc: "Collect 20 Money" },
+                { type: 'grab_boxes', target: 1, desc: "Grab 1 Box" }
+            ];
+            currentMission = { ...pools[Math.floor(Math.random() * pools.length)], progress: 0 };
+            updateHUDDisplay();
+        }
+
+        function checkMissionObjective(type, amount = 1) {
+            if (gameState !== 'playing') return;
+            if (currentMission.type === type) {
+                currentMission.progress += amount;
+                if (currentMission.progress >= currentMission.target) {
+                    runMultiplier += 1;
+                    playSynthTone(587.33, 'sine', 0.4, 0.2);
+                    triggerTopAlert(`Mission Complete: Multiplier is now x${runMultiplier}!`);
+                    initializeMission();
+                }
+                updateHUDDisplay();
+            }
+        }
+
+        function buildAtmosphereAssets() {
+            spatialGridMesh = [];
+            for(let i=0; i<40; i++) {
+                spatialGridMesh.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height * 0.7, radius: Math.random() * 1.5 + 0.5, speed: Math.random() * 0.3 + 0.1 });
+            }
+            backgroundClouds = [];
+            for(let i=0; i<6; i++) {
+                backgroundClouds.push({ x: Math.random() * canvas.width, y: Math.random() * 140 + 40, scale: Math.random() * 35 + 25, speed: Math.random() * 0.25 + 0.15 });
+            }
+            groundTrees = [];
+            for(let i=0; i<15; i++) {
+                groundTrees.push({ x: Math.random() * canvas.width, height: Math.random() * 25 + 15, baseWidth: Math.random() * 8 + 8 });
+            }
+            cityscapeBuildings = [];
+            for(let i=0; i<20; i++) {
+                cityscapeBuildings.push({ x: Math.random() * canvas.width, w: Math.random() * 35 + 25, h: Math.random() * 160 + 60, winColor: Math.random() > 0.5 ? 'rgba(234,179,8,0.3)' : 'rgba(0,243,255,0.3)' });
+            }
+        }
+
+        function updateHUDDisplay() {
+            bankDisplay.innerText = `MONEY: ${accountCredits}`;
+            heartCounter.innerText = `HEARTS: ${accountHearts}`;
+            inventoryDisplay.innerText = `BOXES: ${gatheredBoxesThisRun}`;
+            multiplierDisplay.innerText = `MULTIPLIER: x${runMultiplier}`;
+            scoreDisplay.innerText = `SCORE: ${score}`;
+            missionDisplay.innerText = `MISSION: ${currentMission.desc} (${currentMission.progress}/${currentMission.target})`;
+
+            if (powerupTimer > 0 && activePowerup) {
+                powerupDisplay.style.display = 'inline-block';
+                powerupDisplay.innerText = `${activePowerup.toUpperCase()}: ${(powerupTimer/60).toFixed(1)}s`;
+                powerupDisplay.style.color = activePowerup === 'slow' ? COLORS.purple : (activePowerup === 'shield' ? COLORS.white : COLORS.green);
+            } else { powerupDisplay.style.display = 'none'; }
+        }
+
+        function syncHangarShopUI() {
+            buyHeartBtn.disabled = accountCredits < 40;
+            updateHUDDisplay();
+        }
+
+        function purchaseHeart() {
+            initAudioEngine();
+            if (accountCredits >= 40) {
+                accountCredits -= 40; accountHearts += 1;
+                playSynthTone(523.25, 'sine', 0.2, 0.15);
+                localStorage.setItem('p_ultra_credits', accountCredits);
+                localStorage.setItem('p_ultra_hearts', accountHearts);
+                syncHangarShopUI();
+            }
+        }
+
+        function processControlInput(clientY) {
+            if (gameState !== 'playing') return;
+            const boundingBox = canvas.getBoundingClientRect();
+            playerTargetY = clientY - boundingBox.top;
+            const paddingLimit = playerSize + 20;
+            if (playerTargetY < paddingLimit) playerTargetY = paddingLimit;
+            if (playerTargetY > canvas.height - paddingLimit) playerTargetY = canvas.height - paddingLimit;
+        }
+
+        gameContainer.addEventListener('mousemove', (e) => processControlInput(e.clientY));
+        gameContainer.addEventListener('touchmove', (e) => { processControlInput(e.touches[0].clientY); }, { passive: true });
+
+        gameContainer.addEventListener('click', () => {
+            initAudioEngine();
+            if (gameState !== 'playing' || activePowerup === 'blast') return;
+            playerState = playerState === 'cyan' ? 'magenta' : 'cyan';
+            playSynthTone(playerState === 'cyan' ? 784 : 587.33, 'sine', 0.06, 0.1);
+            createBurstFX(6, 150, playerY, COLORS[playerState]);
+        });
+
+        function terminateApplication() {
+            initAudioEngine(); gameState = 'exited';
+            playSynthTone(140, 'sawtooth', 0.4, 0.15);
+            startScreen.style.display = 'none'; gameOverScreen.style.display = 'none'; exitScreen.style.display = 'block';
+        }
+
+        function reconnectTerminal() {
+            gameState = 'start'; playSynthTone(550, 'sine', 0.2, 0.15);
+            exitScreen.style.display = 'none'; startScreen.style.display = 'block';
+        }
+
+        function showHub() {
+            gameState = 'start'; gameOverScreen.style.display = 'none'; startScreen.style.display = 'block'; centerAlert.style.display = 'none';
+            syncHangarShopUI();
+        }
+
+        function startGame() {
+            initAudioEngine();
+            gameState = 'playing'; score = 0; runMultiplier = 1; gameSpeed = 5.5; gatheredBoxesThisRun = 0; sequentialRevivesThisRun = 0;
+            barriers = []; collectibles = []; phantoms = []; jetTrails = []; activePowerup = null; powerupTimer = 0; livingOrganismPulse = 0;
+            startScreen.style.display = 'none'; gameOverScreen.style.display = 'none'; centerAlert.style.display = 'none';
+            lastSpawnTime = Date.now();
+            initializeMission();
+        }
+
+        function triggerCrashSequence() {
+            gameState = 'intermission'; playSynthTone(100, 'sawtooth', 0.6, 0.3);
+            createBurstFX(35, 150, playerY, COLORS[playerState]);
+            
+            screenTitle.innerText = "Game Over";
+            screenSubtitle.innerText = "Review your run results below.";
+            finalScoreText.innerText = score;
+            
+            let costForThisStep = sequentialRevivesThisRun + 1;
+            reviveCostText.innerText = `Requires ${costForThisStep} Heart to resume play from this position.`;
+            reviveBtn.disabled = accountHearts < costForThisStep;
+            reviveSection.style.display = 'block';
+
+            if (gatheredBoxesThisRun > 0) {
+                vaultGrid.innerHTML = ''; vaultArea.style.display = 'block';
+                hangarReturnBtn.innerText = "Claim Rewards and Return";
+                
+                for(let i=0; i<gatheredBoxesThisRun; i++) {
+                    let boxEl = document.createElement('div'); boxEl.className = 'vault-box'; boxEl.innerText = '📦';
+                    vaultGrid.appendChild(boxEl);
+                }
+
+                let processingDelay = 700;
+                const crates = document.querySelectorAll('.vault-box');
+                crates.forEach((crate, index) => {
+                    setTimeout(() => {
+                        crate.style.borderStyle = 'solid';
+                        crate.style.borderColor = '#10b981'; crate.style.background = 'rgba(16,185,129,0.1)';
+                        let creditPayout = Math.floor(Math.random() * 11) + 20; 
+                        crate.innerText = `+${creditPayout}`;
+                        playSynthTone(440 + (index * 80), 'sine', 0.12, 0.15);
+                        accountCredits += creditPayout; localStorage.setItem('p_ultra_credits', accountCredits);
+                        updateHUDDisplay();
+                    }, processingDelay * (index + 1));
+                });
+            } else {
+                vaultArea.style.display = 'none'; hangarReturnBtn.innerText = "Return to Menu";
+            }
+
+            gameOverScreen.style.display = 'block';
+            localStorage.setItem('p_ultra_credits', accountCredits);
+        }
+
+        function triggerHeartRevive() {
+            let directCost = sequentialRevivesThisRun + 1;
+            if (accountHearts >= directCost) {
+                accountHearts -= directCost; sequentialRevivesThisRun += 1;
+                localStorage.setItem('p_ultra_hearts', accountHearts);
+                playSynthTone(700, 'sine', 0.3, 0.25);
+                gameState = 'playing'; activePowerup = 'shield'; powerupTimer = 180; 
+                barriers = []; phantoms = []; collectibles = [];
+                gameOverScreen.style.display = 'none';
+                triggerTopAlert("Game Resumed");
+                updateHUDDisplay();
+            }
+        }
+
+        function createBurstFX(count, x, y, color) {
+            for(let i=0; i<count; i++) {
+                particles.push({ x: x, y: y, size: Math.random() * 3 + 1, sX: (Math.random() - 0.5) * 10, sY: (Math.random() - 0.5) * 10, color: color, lifespan: 18 });
+            }
+        }
+
+        function triggerTopAlert(msg) {
+            centerAlert.innerText = msg; centerAlert.style.display = 'block';
+            setTimeout(() => { if (gameState === 'playing') centerAlert.style.display = 'none'; }, 2000);
+        }
+
+        function spawnEntities() {
+            const barrierColor = Math.random() > 0.5 ? 'cyan' : 'magenta';
+            const gapY = Math.random() * (canvas.height - 280) + 70;
+            const verticalOpeningSize = Math.max(105, 135 - (score * 0.05));
+
+            // High Score Trigger: Determine if this column breaks apart into multiple passways
+            let type = 'standard';
+            let alternativeGapY = null;
+            if (score >= 250 && Math.random() > 0.4) {
+                type = 'multi-pass';
+                // Pick a secondary clear gateway separated securely from the main gap
+                alternativeGapY = gapY > canvas.height / 2 ? gapY - 220 : gapY + 220;
+            }
+
+            barriers.push({ 
+                x: canvas.width + 60, 
+                topHeight: gapY, 
+                bottomY: gapY + verticalOpeningSize, 
+                colorType: barrierColor, 
+                passed: false,
+                type: type,
+                altTopHeight: alternativeGapY,
+                altBottomY: alternativeGapY ? alternativeGapY + verticalOpeningSize : null,
+                seedOffset: Math.random() * Math.PI // Distinct pulse shift for each wall instance
+            });
+
+            let tokensCount = Math.floor(Math.random() * 3) + 2;
+            for(let i=0; i<tokensCount; i++) {
+                collectibles.push({ x: canvas.width + 150 + (i * 32), y: gapY + (verticalOpeningSize / 2), itemType: 'coin', radius: 6, stepAnim: i });
+            }
+
+            if (Math.random() > 0.8) {
+                collectibles.push({ x: canvas.width + 190, y: Math.random() * (canvas.height - 200) + 100, itemType: 'giftbox', radius: 9, stepAnim: 0 });
+            }
+
+            if (Math.random() > 0.82) {
+                const types = ['slow', 'shield', 'blast'];
+                let chosen = types[Math.floor(Math.random() * types.length)];
+                collectibles.push({ x: canvas.width + 220, y: Math.random() * (canvas.height - 180) + 90, itemType: chosen, radius: 11, stepAnim: 0 });
+            }
+
+            if (Math.random() > 0.6) {
+                phantoms.push({
+                    x: canvas.width + 300, targetX: canvas.width * (Math.random() * 0.2 + 0.55), y: Math.random() * (canvas.height - 200) + 100,
+                    opacity: 0, phaseState: 'appearing', timer: 150, shootCooldown: 50, verticalWaveDir: Math.random() > 0.5 ? 1 : -1
+                });
+            }
+        }
+
+        function runMasterLoop() {
+            if (gameState === 'playing') {
+                let dynamicBase = 5.5 + (score * 0.005);
+                gameSpeed = (activePowerup === 'slow') ? dynamicBase * 0.5 : dynamicBase;
+                livingOrganismPulse += 0.03; // Advance continuous global animation clock
+            }
+
+            // --- DECORATIVE DYNAMIC ATMOSPHERE ENVIRONMENT ROTATION LAYER ---
+            if (score < 150) { 
+                ctx.fillStyle = '#060913'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                cityscapeBuildings.forEach(b => {
+                    if (gameState === 'playing') b.x -= gameSpeed * 0.15;
+                    if (b.x < -b.w) b.x = canvas.width;
+                    ctx.fillStyle = '#0b0f19'; ctx.fillRect(b.x, canvas.height - b.h, b.w, b.h);
+                    ctx.fillStyle = b.winColor;
+                    for (let wy = canvas.height - b.h + 12; wy < canvas.height - 15; wy += 28) {
+                        ctx.fillRect(b.x + b.w/2 - 2, wy, 4, 5);
+                    }
+                });
+            } else if (score >= 150 && score < 350) {
+                let daySkyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                daySkyGrad.addColorStop(0, '#8ccbe3'); daySkyGrad.addColorStop(1, '#cae6f4');
+                ctx.fillStyle = daySkyGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                backgroundClouds.forEach(c => {
+                    if (gameState === 'playing') c.x -= gameSpeed * c.speed;
+                    if (c.x < -c.scale * 2) c.x = canvas.width + c.scale;
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    ctx.beginPath(); ctx.arc(c.x, c.y, c.scale, 0, Math.PI * 2); ctx.arc(c.x + c.scale * 0.6, c.y - c.scale * 0.15, c.scale * 0.75, 0, Math.PI * 2); ctx.fill();
+                });
+
+                ctx.fillStyle = '#245a43'; ctx.fillRect(0, canvas.height - 35, canvas.width, 35);
+                groundTrees.forEach(t => {
+                    if (gameState === 'playing') t.x -= gameSpeed * 0.35;
+                    if (t.x < -20) t.x = canvas.width + 20;
+                    ctx.fillStyle = '#143828'; ctx.beginPath();
+                    ctx.moveTo(t.x, canvas.height - 35 - t.height); ctx.lineTo(t.x - t.baseWidth, canvas.height - 35); ctx.lineTo(t.x + t.baseWidth, canvas.height - 35);
+                    ctx.closePath(); ctx.fill();
+                });
+            } else {
+                let seaSkyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                seaSkyGrad.addColorStop(0, '#090d16'); seaSkyGrad.addColorStop(0.7, '#0f172a'); seaSkyGrad.addColorStop(1, '#0274b3');
+                ctx.fillStyle = seaSkyGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                if (gameState === 'playing') seaWaveAnims += 0.035;
+                ctx.fillStyle = '#026298'; ctx.beginPath(); ctx.moveTo(0, canvas.height);
+                for(let sx=0; sx<=canvas.width; sx+=45) {
+                    let sy = canvas.height - 45 + Math.sin(sx * 0.02 + seaWaveAnims) * 10;
+                    ctx.lineTo(sx, sy);
+                }
+                ctx.lineTo(canvas.width, canvas.height); ctx.closePath(); ctx.fill();
+            }
+
+            if (score < 150 || score >= 350) {
+                spatialGridMesh.forEach(node => {
+                    if(gameState === 'playing') {
+                        node.x -= node.speed * (gameSpeed / 2); if(node.x < 0) node.x = canvas.width;
+                    }
+                    ctx.fillStyle = score >= 350 ? 'rgba(255,255,255,0.15)' : 'rgba(255, 255, 255, 0.06)';
+                    ctx.fillRect(node.x, node.y, node.radius, node.radius);
+                });
+            }
+
+            if (gameState === 'playing' && powerupTimer > 0) {
+                powerupTimer--; if (powerupTimer <= 0) activePowerup = null;
+                updateHUDDisplay();
+            }
+
+            particles.forEach((p, index) => {
+                p.x += p.sX; p.y += p.sY; p.lifespan--; ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                if(p.lifespan <= 0) particles.splice(index, 1);
+            });
+
+            if (gameState === 'playing') {
+                playerY += (playerTargetY - playerY) * 0.22;
+                let activeColor = activePowerup === 'blast' ? COLORS.green : COLORS[playerState];
+                jetTrails.push({ x: 150, y: playerY, color: activeColor, op: 0.6 });
+
+                let now = Date.now();
+                if(now - lastSpawnTime > Math.max(900, 2000 - (gameSpeed * 90))) { spawnEntities(); lastSpawnTime = now; }
+            }
+
+            jetTrails.forEach((trail, idx) => {
+                trail.x -= gameSpeed; trail.op -= 0.05;
+                if(trail.op <= 0) { jetTrails.splice(idx, 1); return; }
+                ctx.fillStyle = trail.color; ctx.globalAlpha = trail.op;
+                ctx.beginPath(); ctx.arc(trail.x - 10, trail.y, 2, 0, Math.PI*2); ctx.fill();
+            });
+            ctx.globalAlpha = 1.0;
+
+            phantoms.forEach((ghost, idx) => {
+                if (gameState === 'playing') {
+                    if (ghost.phaseState === 'appearing') {
+                        ghost.x -= gameSpeed * 1.4; ghost.opacity += 0.04;
+                        if (ghost.x <= ghost.targetX) { ghost.phaseState = 'static'; ghost.opacity = 1; }
+                    } else if (ghost.phaseState === 'static') {
+                        ghost.x -= gameSpeed * 0.12;
+                        if(score > 120) {
+                            ghost.y += ghost.verticalWaveDir * 1.4;
+                            if(ghost.y < 80 || ghost.y > canvas.height - 80) ghost.verticalWaveDir *= -1;
+                        }
+                        ghost.timer--; ghost.shootCooldown--;
+                        if(ghost.shootCooldown === 0) {
+                            playSynthTone(293.66, 'sawtooth', 0.1, 0.08);
+                            collectibles.push({ x: ghost.x, y: ghost.y, itemType: 'rocket', radius: 6, stepAnim: 0 });
+                        }
+                        if(ghost.timer <= 0) ghost.phaseState = 'disappearing';
+                    } else if (ghost.phaseState === 'disappearing') {
+                        ghost.opacity -= 0.05; ghost.x -= gameSpeed * 0.5;
+                        if (ghost.opacity <= 0) { phantoms.splice(idx, 1); return; }
+                    }
+                }
+                ctx.save(); ctx.globalAlpha = ghost.opacity * 0.8;
+                ctx.strokeStyle = COLORS.magenta; ctx.lineWidth = 1.5; ctx.fillStyle = 'rgba(255, 0, 85, 0.08)';
+                ctx.beginPath(); ctx.moveTo(ghost.x - 12, ghost.y - 16); ctx.lineTo(ghost.x + 16, ghost.y); ctx.lineTo(ghost.x - 12, ghost.y + 16); ctx.lineTo(ghost.x - 4, ghost.y);
+                ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+            });
+
+            collectibles.forEach((item, index) => {
+                if(gameState === 'playing') item.x -= (item.itemType === 'rocket' ? gameSpeed + 3.5 : gameSpeed);
+                item.stepAnim += 0.1; let animatedRadius = item.radius + Math.sin(item.stepAnim) * 1.2;
+
+                if (item.itemType === 'coin') {
+                    ctx.fillStyle = COLORS.gold;
+                    ctx.beginPath(); ctx.arc(item.x, item.y, animatedRadius, 0, Math.PI*2); ctx.fill();
+                } else if (item.itemType === 'giftbox') {
+                    ctx.fillStyle = '#00f3ff';
+                    ctx.fillRect(item.x - 8, item.y - 8, 16, 16);
+                    ctx.fillStyle = '#ffffff'; ctx.fillRect(item.x - 1.5, item.y - 8, 3, 16); ctx.fillRect(item.x - 8, item.y - 1.5, 16, 3);
+                } else if (item.itemType === 'rocket') {
+                    ctx.fillStyle = COLORS.magenta;
+                    ctx.beginPath(); ctx.arc(item.x, item.y, item.radius, 0, Math.PI*2); ctx.fill();
+                } else {
+                    ctx.fillStyle = item.itemType === 'slow' ? COLORS.purple : (item.itemType === 'shield' ? COLORS.white : COLORS.green);
+                    ctx.beginPath();
+                    ctx.moveTo(item.x, item.y - animatedRadius); ctx.lineTo(item.x + animatedRadius, item.y); ctx.lineTo(item.x, item.y + animatedRadius); ctx.lineTo(item.x - animatedRadius, item.y);
+                    ctx.closePath(); ctx.fill();
+                }
+
+                if(gameState === 'playing' && Math.hypot(item.x - 150, item.y - playerY) < (playerSize + item.radius)) {
+                    if (item.itemType === 'coin') {
+                        accountCredits += 1; playSynthTone(987.77, 'sine', 0.06, 0.1);
+                        createBurstFX(3, item.x, item.y, COLORS.gold); checkMissionObjective('get_credits', 1);
+                    } else if (item.itemType === 'giftbox') {
+                        gatheredBoxesThisRun += 1; playSynthTone(880, 'triangle', 0.18, 0.15);
+                        createBurstFX(8, item.x, item.y, '#00f3ff'); triggerTopAlert("Box Collected");
+                        checkMissionObjective('grab_boxes', 1);
+                    } else if (item.itemType === 'rocket') {
+                        if (activePowerup !== 'blast') {
+                            collectibles.splice(index, 1);
+                            if (activePowerup === 'shield') {
+                                playSynthTone(300, 'sawtooth', 0.25, 0.2);
+                                activePowerup = null; powerupTimer = 0; triggerTopAlert("Shield Broken");
+                            } else { triggerCrashSequence(); } return;
+                        }
+                    } else {
+                        activePowerup = item.itemType; powerupTimer = item.itemType === 'slow' ? 300 : (item.itemType === 'blast' ? 240 : 360);
+                        playSynthTone(600, 'sine', 0.25, 0.15); triggerTopAlert(`${item.itemType.toUpperCase()} Activated`);
+                        createBurstFX(8, item.x, item.y, ctx.fillStyle);
+                    }
+                    localStorage.setItem('p_ultra_credits', accountCredits); updateHUDDisplay(); collectibles.splice(index, 1);
+                }
+                if(item.x < -40) collectibles.splice(index, 1);
+            });
+
+            barriers.forEach((b, index) => {
+                if(gameState === 'playing') b.x -= gameSpeed;
+                
+                const columnThickness = 32; 
+                const frameHexAccentColor = COLORS[b.colorType];
+
+                // Living Body Mechanics: If score is high enough, mutate structure positions mathematically
+                let dynamicTopHeight = b.topHeight;
+                let dynamicBottomY = b.bottomY;
+                let dynamicAltTopHeight = b.altTopHeight;
+                let dynamicAltBottomY = b.altBottomY;
+
+                if (score >= 100 && gameState === 'playing') {
+                    // Generate subtle shifting breathing pulses that offset column structures like living tissue
+                    let shiftingOffset = Math.sin(livingOrganismPulse + b.seedOffset) * 22;
+                    dynamicTopHeight += shiftingOffset;
+                    dynamicBottomY += shiftingOffset;
+                    if (b.type === 'multi-pass') {
+                        dynamicAltTopHeight += shiftingOffset;
+                        dynamicAltBottomY += shiftingOffset;
+                    }
+                }
+
+                // Render Passways / Columns Map
+                ctx.fillStyle = score >= 150 && score < 350 ? '#334155' : COLORS.hullWhite;
+
+                if (b.type === 'standard') {
+                    // Top Segment Pillar
+                    ctx.fillRect(b.x, 0, columnThickness, dynamicTopHeight);
+                    ctx.fillStyle = frameHexAccentColor; ctx.fillRect(b.x + 6, 0, columnThickness - 12, dynamicTopHeight - 6);
+                    ctx.fillStyle = COLORS.white; ctx.fillRect(b.x - 2, dynamicTopHeight - 6, columnThickness + 4, 6);
+
+                    // Bottom Segment Pillar
+                    ctx.fillStyle = score >= 150 && score < 350 ? '#334155' : COLORS.hullWhite;
+                    ctx.fillRect(b.x, dynamicBottomY, columnThickness, canvas.height - dynamicBottomY);
+                    ctx.fillStyle = frameHexAccentColor; ctx.fillRect(b.x + 6, dynamicBottomY + 6, columnThickness - 12, canvas.height - dynamicBottomY - 6);
+                    ctx.fillStyle = COLORS.white; ctx.fillRect(b.x - 2, dynamicBottomY, columnThickness + 4, 6);
+                } else if (b.type === 'multi-pass') {
+                    // Dual Hole Segment Architecture Calculations
+                    let firstGapTop = Math.min(dynamicTopHeight, dynamicAltTopHeight);
+                    let firstGapBottom = Math.min(dynamicBottomY, dynamicAltBottomY);
+                    let secondGapTop = Math.max(dynamicTopHeight, dynamicAltTopHeight);
+                    let secondGapBottom = Math.max(dynamicBottomY, dynamicAltBottomY);
+
+                    // Top Base Section block
+                    ctx.fillRect(b.x, 0, columnThickness, firstGapTop);
+                    ctx.fillStyle = frameHexAccentColor; ctx.fillRect(b.x + 6, 0, columnThickness - 12, firstGapTop - 6);
+                    ctx.fillStyle = COLORS.white; ctx.fillRect(b.x - 2, firstGapTop - 6, columnThickness + 4, 6);
+
+                    // Middle Organic Island section blocking space between passways
+                    ctx.fillStyle = score >= 150 && score < 350 ? '#334155' : COLORS.hullWhite;
+                    ctx.fillRect(b.x, firstGapBottom, columnThickness, secondGapTop - firstGapBottom);
+                    ctx.fillStyle = frameHexAccentColor; ctx.fillRect(b.x + 6, firstGapBottom + 6, columnThickness - 12, (secondGapTop - firstGapBottom) - 12);
+                    ctx.fillStyle = COLORS.white; 
+                    ctx.fillRect(b.x - 2, firstGapBottom, columnThickness + 4, 6);
+                    ctx.fillRect(b.x - 2, secondGapTop - 6, columnThickness + 4, 6);
+
+                    // Bottom Base Section block
+                    ctx.fillStyle = score >= 150 && score < 350 ? '#334155' : COLORS.hullWhite;
+                    ctx.fillRect(b.x, secondGapBottom, columnThickness, canvas.height - secondGapBottom);
+                    ctx.fillStyle = frameHexAccentColor; ctx.fillRect(b.x + 6, secondGapBottom + 6, columnThickness - 12, canvas.height - secondGapBottom - 6);
+                    ctx.fillStyle = COLORS.white; ctx.fillRect(b.x - 2, secondGapBottom, columnThickness + 4, 6);
+                }
+
+                // Check Matrix Hitbox Vectors
+                if (gameState === 'playing' && b.x <= 165 && b.x >= 125) {
+                    let colliding = false;
+
+                    if (b.type === 'standard') {
+                        if (playerY - playerSize < dynamicTopHeight || playerY + playerSize > dynamicBottomY) {
+                            colliding = true;
+                        }
+                    } else if (b.type === 'multi-pass') {
+                        // Check if the player is inside neither of the two available passways
+                        let insideFirstHole = (playerY - playerSize > dynamicTopHeight && playerY + playerSize < dynamicBottomY);
+                        let insideSecondHole = (playerY - playerSize > dynamicAltTopHeight && playerY + playerSize < dynamicAltBottomY);
+                        if (!insideFirstHole && !insideSecondHole) {
+                            colliding = true;
+                        }
+                    }
+
+                    if (colliding) {
+                        if (activePowerup === 'blast') {
+                            playSynthTone(400, 'sawtooth', 0.15, 0.15); barriers.splice(index, 1);
+                            createBurstFX(12, b.x + 15, playerY, frameHexAccentColor); return;
+                        }
+                        if (playerState !== b.colorType) {
+                            if (activePowerup === 'shield') {
+                                playSynthTone(330, 'triangle', 0.2, 0.2);
+                                activePowerup = null; powerupTimer = 0; barriers.splice(index, 1);
+                                createBurstFX(15, 150, playerY, COLORS.white); triggerTopAlert("Shield Broken");
+                                updateHUDDisplay();
+                            } else { triggerCrashSequence(); }
+                        }
+                    }
+                }
+
+                if (gameState === 'playing' && !b.passed && b.x < 150) {
+                    b.passed = true; score += 10 * runMultiplier; playSynthTone(440, 'sine', 0.04, 0.04);
+                    updateHUDDisplay(); checkMissionObjective('pass_walls', 1);
+                }
+                if(b.x < -50) barriers.splice(index, 1);
+            });
+
+            if (gameState === 'playing' || gameState === 'start' || gameState === 'intermission') {
+                let glowConeGradient = ctx.createLinearGradient(150, playerY, 320, playerY);
+                let coreHexHue = activePowerup === 'blast' ? '16,185,129' : (playerState === 'cyan' ? '0,243,255' : '255,0,85');
+                glowConeGradient.addColorStop(0, `rgba(${coreHexHue}, 0.15)`); glowConeGradient.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = glowConeGradient; ctx.beginPath(); ctx.moveTo(150, playerY);
+                ctx.lineTo(320, playerY - 50); ctx.lineTo(320, playerY + 50); ctx.closePath(); ctx.fill();
+
+                if (activePowerup === 'shield') {
+                    ctx.strokeStyle = COLORS.white; ctx.lineWidth = 1.5;
+                    ctx.beginPath(); ctx.arc(150, playerY, playerSize + 10, 0, Math.PI*2); ctx.stroke();
+                }
+
+                ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.moveTo(134, playerY - (playerSize + 6)); ctx.lineTo(156, playerY); ctx.lineTo(134, playerY + (playerSize + 6)); ctx.lineTo(142, playerY); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = COLORS.hullWhite; ctx.beginPath(); ctx.moveTo(138, playerY - (playerSize + 3)); ctx.lineTo(154, playerY); ctx.lineTo(138, playerY + (playerSize + 3)); ctx.lineTo(144, playerY); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = activePowerup === 'blast' ? COLORS.green : COLORS[playerState];
+                ctx.beginPath(); ctx.arc(146, playerY, 4, 0, Math.PI*2); ctx.fill();
+            }
+
+            requestAnimationFrame(runMasterLoop);
+        }
+
+        buildAtmosphereAssets();
+        syncHangarShopUI();
+        runMasterLoop();
+    </script>
+</body>
+</html>
